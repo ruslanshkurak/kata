@@ -1,0 +1,133 @@
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"strings"
+)
+
+func romanToArabic(roman string) (int, error) {
+	romans := map[rune]int{'I': 1, 'V': 5, 'X': 10, 'L': 50, 'C': 100}
+	var arabic int
+	var lastValue int
+	for i := len(roman) - 1; i >= 0; i-- {
+		value := romans[rune(roman[i])]
+		if value < lastValue {
+			arabic -= value
+		} else {
+			arabic += value
+		}
+		lastValue = value
+	}
+	if arabic > 10 {
+		return 0, fmt.Errorf("число больше 10")
+	}
+	return arabic, nil
+}
+
+func arabicToRoman(arabic int) (string, error) {
+	if arabic < 1 {
+		return "", fmt.Errorf("результат работы менее единицы")
+	}
+
+	arabics := []int{100, 90, 50, 40, 10, 9, 5, 4, 1}
+	romans := []string{"C", "XC", "L", "XL", "X", "IX", "V", "IV", "I"}
+	var result strings.Builder
+
+	for i, val := range arabics {
+		for arabic >= val {
+			arabic -= val
+			result.WriteString(romans[i])
+		}
+	}
+	return result.String(), nil
+}
+
+func isRoman(s string) bool {
+	return strings.IndexFunc(s, func(r rune) bool {
+		return r != 'I' && r != 'V' && r != 'X'
+	}) == -1
+}
+
+func calculate(expression string) (string, error) {
+	parts := strings.Fields(expression)
+	if len(parts) != 3 {
+		return "", fmt.Errorf("неверный формат выражения")
+	}
+
+	aIsRoman := isRoman(parts[0])
+	bIsRoman := isRoman(parts[2])
+
+	if aIsRoman != bIsRoman {
+		return "", fmt.Errorf("разные системы счисления")
+	}
+
+	var a, b int
+	var err error
+
+	if aIsRoman {
+		a, err = romanToArabic(parts[0])
+		if err != nil {
+			return "", err
+		}
+		b, err = romanToArabic(parts[2])
+		if err != nil {
+			return "", err
+		}
+	} else {
+		_, err = fmt.Sscanf(parts[0], "%d", &a)
+		if err != nil {
+			return "", fmt.Errorf("неверный формат числа %s", parts[0])
+		}
+		_, err = fmt.Sscanf(parts[2], "%d", &b)
+		if err != nil {
+			return "", fmt.Errorf("неверный формат числа %s", parts[2])
+		}
+	}
+
+	if a < 1 || a > 10 || b < 1 || b > 10 {
+		return "", fmt.Errorf("числа должны быть в диапазоне от 1 до 10")
+	}
+
+	var result int
+	switch parts[1] {
+	case "+":
+		result = a + b
+	case "-":
+		result = a - b
+	case "*":
+		result = a * b
+	case "/":
+		if b == 0 {
+			return "", fmt.Errorf("деление на ноль")
+		}
+		result = a / b
+	default:
+		return "", fmt.Errorf("неизвестная операция %s", parts[1])
+	}
+
+	if result < 0 && aIsRoman {
+		return "", fmt.Errorf("римские числа не могут быть отрицательными")
+	}
+
+	if aIsRoman {
+		return arabicToRoman(result)
+	}
+	return fmt.Sprint(result), nil
+}
+
+func main() {
+	scanner := bufio.NewScanner(os.Stdin)
+	fmt.Println("Введите выражение в формате 'a + b', 'a - b', 'a * b' или 'a / b':")
+	for scanner.Scan() {
+		input := scanner.Text()
+
+		result, err := calculate(input)
+		if err != nil {
+			panic(err)
+		}
+
+		fmt.Println("Результат:", result)
+	}
+}
